@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bản đồ Phòng Giao dịch Ngân hàng tại Quảng Bình - Quảng Trị</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        .filter-section {
+            margin-bottom: 15px;
+        }
+        .filter-section h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .filter-checkbox {
+            margin: 5px 0;
+        }
+        .filter-checkbox input {
+            margin-right: 8px;
+        }
+        .filter-checkbox label {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        .bank-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 420px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .info-panel h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .bank-section {
+            margin-bottom: 20px;
+        }
+        .bank-header {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .bank-header:hover {
+            opacity: 0.9;
+        }
+        .vietinbank-header {
+            background-color: #00a652;
+        }
+        .vietcombank-header {
+            background-color: #003d7a;
+        }
+        .bidv-header {
+            background-color: #1e5aa8;
+        }
+        .province-subsection {
+            margin: 5px 0;
+        }
+        .province-subheader {
+            background-color: #f0f0f0;
+            padding: 8px 10px;
+            border-radius: 3px;
+            margin: 5px 0;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .branch-list {
+            display: none;
+            margin-top: 5px;
+        }
+        .branch-list.active {
+            display: block;
+        }
+        .branch-item {
+            padding: 8px 15px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+            cursor: pointer;
+            background: #f9f9f9;
+            margin: 2px 0;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+        .branch-item:hover {
+            background-color: #e6f2ff;
+        }
+        .branch-item strong {
+            display: block;
+            margin-bottom: 3px;
+        }
+        .branch-item small {
+            color: #666;
+        }
+        .custom-popup {
+            font-size: 14px;
+        }
+        .custom-popup h4 {
+            margin: 0 0 5px 0;
+        }
+        .stats {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .stats-detail {
+            margin-top: 5px;
+            font-size: 13px;
+            color: #666;
+        }
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 10px;
+            background: white;
+            padding: 6px 8px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 1000;
+            transform: scale(0.7);
+            transform-origin: bottom left;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 3px 0;
+            font-size: 11px;
+        }
+        .legend-item .bank-indicator {
+            width: 14px;
+            height: 14px;
+            margin-right: 6px;
+        }
+        @media (max-width: 768px) {
+            .info-panel {
+                right: 5px;
+                top: 70px;
+                max-width: calc(100% - 80px);
+            }
+            .control-panel {
+                left: 5px;
+                top: 5px;
+                padding: 10px;
+            }
+            .legend {
+                bottom: 10px;
+                left: 5px;
+                transform: scale(0.6);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="control-panel">
+        <div class="filter-section">
+            <h4>Lọc theo ngân hàng</h4>
+            <div class="filter-checkbox">
+                <label>
+                    <input type="checkbox" id="filter-vietinbank" checked onchange="filterBanks()">
+                    <span class="bank-indicator" style="background-color: #00a652;"></span>
+                    Vietinbank
+                </label>
+            </div>
+            <div class="filter-checkbox">
+                <label>
+                    <input type="checkbox" id="filter-vietcombank" checked onchange="filterBanks()">
+                    <span class="bank-indicator" style="background-color: #003d7a;"></span>
+                    Vietcombank
+                </label>
+            </div>
+            <div class="filter-checkbox">
+                <label>
+                    <input type="checkbox" id="filter-bidv" checked onchange="filterBanks()">
+                    <span class="bank-indicator" style="background-color: #1e5aa8;"></span>
+                    BIDV
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <h3>Mạng lưới Phòng Giao dịch</h3>
+        
+        <div class="bank-section">
+            <div class="bank-header vietinbank-header" onclick="toggleBank('vietinbank')">
+                <span>Vietinbank</span>
+                <span id="vietinbank-count">13 PGD</span>
+            </div>
+            <div class="branch-list active" id="vietinbank-list">
+                <div class="province-subsection">
+                    <div class="province-subheader">Quảng Trị (7 PGD)</div>
+                    <div id="vietinbank-qt-list"></div>
+                </div>
+                <div class="province-subsection">
+                    <div class="province-subheader">Quảng Bình (6 PGD)</div>
+                    <div id="vietinbank-qb-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bank-section">
+            <div class="bank-header vietcombank-header" onclick="toggleBank('vietcombank')">
+                <span>Vietcombank</span>
+                <span id="vietcombank-count">13 PGD</span>
+            </div>
+            <div class="branch-list active" id="vietcombank-list">
+                <div class="province-subsection">
+                    <div class="province-subheader">Quảng Trị (6 PGD)</div>
+                    <div id="vietcombank-qt-list"></div>
+                </div>
+                <div class="province-subsection">
+                    <div class="province-subheader">Quảng Bình (7 PGD)</div>
+                    <div id="vietcombank-qb-list"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bank-section">
+            <div class="bank-header bidv-header" onclick="toggleBank('bidv')">
+                <span>BIDV</span>
+                <span>19 PGD</span>
+            </div>
+            <div class="branch-list" id="bidv-list">
+                <div class="province-subsection">
+                    <div class="province-subheader">Quảng Bình (13 PGD)</div>
+                    <div id="bidv-qb-list"></div>
+                </div>
+                <div class="province-subsection">
+                    <div class="province-subheader">Quảng Trị (6 PGD)</div>
+                    <div id="bidv-qt-list"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <strong>Tổng cộng:</strong> <span id="total-count">45</span> Phòng giao dịch
+            <div class="stats-detail">
+                • Vietinbank: 13 PGD<br>
+                • Vietcombank: 13 PGD<br>
+                • BIDV: 19 PGD
+            </div>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item">
+            <span class="bank-indicator" style="background-color: #00a652;"></span>
+            <span>Vietinbank</span>
+        </div>
+        <div class="legend-item">
+            <span class="bank-indicator" style="background-color: #003d7a;"></span>
+            <span>Vietcombank</span>
+        </div>
+        <div class="legend-item">
+            <span class="bank-indicator" style="background-color: #1e5aa8;"></span>
+            <span>BIDV</span>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Danh sách PGD Vietcombank
+        const vietcombankBranches = {
+            quangTri: [
+                {
+                    name: "Vietcombank Chi Nhánh Quảng Trị",
+                    lat: 16.8172,
+                    lng: 107.1003,
+                    address: "số 34 đường Hùng Vương, TP. Đông Hà, Quảng Trị",
+                    type: "Chi nhánh",
+                    province: "Quảng Trị",
+                    bank: "Vietcombank"
+                },
+                {
+                    name: "Vietcombank PGD Gio Linh",
+                    lat: 16.9350,
+                    lng: 107.0350,
+                    address: "Số 2, đường 2/4, thị trấn Gio Linh, huyện Gio Linh, Quảng Trị",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Trị",
+                    bank: "Vietcombank"
+                },
+                {
+                    name: "Vietcombank PGD Hải Lăng",
+                    lat: 16.6833,
+                    lng: 107.2500,
+                    address: "Số 10 đường Hùng Vương, thị trấn Diên Sanh, huyện Hải Lăng, Quảng Trị",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Trị",
+                    bank: "Vietcombank"
+                },
+                {
+                    name: "Vietcombank PGD Thị Xã Quảng Trị",
+                    lat: 16.7520,
+                    lng: 107.1920,
+                    address: "136 A đường Trần Hưng Đạo, thị xã Quảng Trị, Quảng Trị",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Trị",
+                    bank: "Vietcombank"
+                },
+                {
+                    name: "Vietcombank PGD Đông Hà",
+                    lat: 16.8200,
+                    lng: 107.1050,
+                    address: "Số 157 đường Hùng Vương nối dài, phường 5, TP. Đông Hà, Quảng Trị",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Trị",
+                    bank: "Vietcombank"
+                },
+                {
+                    name: "Vietcombank PGD Vĩnh Linh",
+                    lat: 17.0680,
+                    lng: 106.9520,
+                    address: "09 Hùng vương, thị trấn hồ xá, huyện Vĩnh Linh, Quảng Trị",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Trị",
+                    bank: "Vietcombank"
+                }
+            ],
+            quangBinh: [
+                {
+                    name: "Vietcombank Chi Nhánh Quảng Bình",
+                    lat: 17.4690,
+                    lng: 106.6030,
+                    address: "Số 01C Đ. Trần Hưng Đạo, phường Đồng Hải, TP. Đồng Hới, Quảng Bình",
+                    type: "Chi nhánh",
+                    province: "Quảng Bình",
+                    bank: "Vietcombank"
+                },
+                {
+                    name: "Vietcombank PGD Ba Đồn",
+                    lat: 17.7520,
+                    lng: 106.4350,
+                    address: "Số 326 đường Quang Trung, phường Ba Đồn, thị xã Ba Đồn, Quảng Bình",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Bình",
+                    bank: "Vietcombank"
+                },
+                {
+                    name: "Vietcombank PGD Bố Trạch",
+                    lat: 17.5180,
+                    lng: 106.2520,
+                    address: "Số 348 Hùng Vương, tiểu khu 2, thị trấn Hoàn Lão, huyện Bố Trạch, Quảng Bình",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Bình",
+                    bank: "Vietcombank"
+                },
+                {
+                    name: "Vietcombank PGD Lệ Thủy",
+                    lat: 17.0680,
+                    lng: 106.6850,
+                    address: "29 Nguyễn Tất Thành, Thị trấn Kiến Giang, huyện Lệ Thủy, Quảng Bình",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Bình",
+                    bank: "Vietcombank"
+                },
+                {
+                    name: "Vietcombank PGD Quảng Trạch",
+                    lat: 17.8600,
+                    lng: 106.4700,
+                    address: "Thôn Di Lộc, xã Quảng Tùng, huyện Quảng Trạch, Quảng Bình",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Bình",
+                    bank: "Vietcombank"
+                },
+                {
+                    name: "Vietcombank PGD Đồng Hới",
+                    lat: 17.4685,
+                    lng: 106.6010,
+                    address: "82 Hữu Nghị, TP. Đồng Hới, Quảng Bình",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Bình",
+                    bank: "Vietcombank"
+                },
+                {
+                    name: "Vietcombank PGD Quán Hàu",
+                    lat: 17.6350,
+                    lng: 106.4680,
+                    address: "Số 38, Đường Hùng Vương , Thị trấn Quán Hàu, Huyện Quảng Ninh, Quảng Bình",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Bình",
+                    bank: "Vietcombank"
+                }
+            ]
+        };
+
+        // Danh sách PGD Vietinbank (từ trước)
+        const vietinbankBranches = {
+            quangTri: [
+                {
+                    name: "Hội sở CN Quảng Trị",
+                    lat: 16.8180,
+                    lng: 107.1005,
+                    address: "236 Hùng Vương, P. Đông Lễ, TP. Đông Hà, Quảng Trị",
+                    type: "Hội sở chi nhánh",
+                    province: "Quảng Trị",
+                    bank: "Vietinbank"
+                },
+                {
+                    name: "PGD Lao Bảo",
+                    lat: 16.6333,
+                    lng: 106.5500,
+                    address: "Thị trấn Lao Bảo, h. Hương Hóa, Quảng Trị",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Trị",
+                    bank: "Vietinbank"
+                },
+                {
+                    name: "PGD Quảng Trị",
+                    lat: 16.8165,
+                    lng: 107.1010,
+                    address: "218 Trần Hưng Đạo, Đông Hà, Quảng Trị",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Trị",
+                    bank: "Vietinbank"
+                },
+                {
+                    name: "PGD Chợ Đông Hà",
+                    lat: 16.8150,
+                    lng: 107.0980,
+                    address: "Chợ Đông Hà, TP Đông Hà, Quảng Trị",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Trị",
+                    bank: "Vietinbank"
+                },
+                {
+                    name: "PGD Hùng Vương",
+                    lat: 16.8170,
+                    lng: 107.1000,
+                    address: "33 Hùng Vương, TP Đông Hà, Quảng Trị",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Trị",
+                    bank: "Vietinbank"
+                },
+                {
+                    name: "PGD Gio Linh",
+                    lat: 16.9333,
+                    lng: 107.0333,
+                    address: "TT Gio Linh, Gio Linh, Quảng Trị",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Trị",
+                    bank: "Vietinbank"
+                },
+                {
+                    name: "PGD Khe Sanh",
+                    lat: 16.6667,
+                    lng: 106.7167,
+                    address: "Thị trấn Khe Sanh, huyện Hướng Hóa, tỉnh Quảng Trị",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Trị",
+                    bank: "Vietinbank"
+                }
+            ],
+            quangBinh: [
+                {
+                    name: "Hội sở CN Quảng Bình",
+                    lat: 17.4680,
+                    lng: 106.6020,
+                    address: "215 Lý Thường Kiệt, TP. Đồng Hới, Tỉnh Quảng Bình",
+                    type: "Hội sở chi nhánh",
+                    province: "Quảng Bình",
+                    bank: "Vietinbank"
+                },
+                {
+                    name: "PGD Lệ Thủy",
+                    lat: 17.0667,
+                    lng: 106.6833,
+                    address: "Thôn Thượng Giang, TT Kiến Giang, Lệ Thủy, Quảng Bình",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Bình",
+                    bank: "Vietinbank"
+                },
+                {
+                    name: "PGD Ba Đồn",
+                    lat: 17.7500,
+                    lng: 106.4333,
+                    address: "Khu phố 1, TT. Ba Đồn, Quảng Trạch, Quảng Bình",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Bình",
+                    bank: "Vietinbank"
+                },
+                {
+                    name: "PGD Đồng Hới",
+                    lat: 17.4670,
+                    lng: 106.6000,
+                    address: "50 Lý Thường Kiệt, TP. Đồng Hới, Quảng Bình",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Bình",
+                    bank: "Vietinbank"
+                },
+                {
+                    name: "PGD chợ Ga",
+                    lat: 17.4700,
+                    lng: 106.6100,
+                    address: "20 Tố Hữu, Đồng Hới, Quảng Bình",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Bình",
+                    bank: "Vietinbank"
+                },
+                {
+                    name: "PGD Hải Đình",
+                    lat: 17.4650,
+                    lng: 106.5980,
+                    address: "số 28 đường Mẹ Suốt, phường Hải Đình, Thành phố Đồng Hới, tỉnh Quảng Bình",
+                    type: "Phòng giao dịch",
+                    province: "Quảng Bình",
+                    bank: "Vietinbank"
+                }
+            ]
+        };
+
+        // Danh sách các phòng giao dịch BIDV (đổi tên từ Other)
+        const bidvBranches = {
+            quangBinh: [
+                {
+                    name: "BIDV PGD Đồng Hới",
+                    lat: 17.4667,
+                    lng: 106.6000,
+                    address: "TP. Đồng Hới, Quảng Bình",
+                    type: "Trung tâm tỉnh",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Nguyễn Trãi",
+                    lat: 17.4700,
+                    lng: 106.6050,
+                    address: "Đường Nguyễn Trãi, TP. Đồng Hới",
+                    type: "Khu vực thành phố",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Bắc Lý",
+                    lat: 17.4800,
+                    lng: 106.6100,
+                    address: "Phía Bắc TP. Đồng Hới",
+                    type: "Khu vực thành phố",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Nam Lý",
+                    lat: 17.4500,
+                    lng: 106.5950,
+                    address: "Phía Nam TP. Đồng Hới",
+                    type: "Khu vực thành phố",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Quán Hàu",
+                    lat: 17.6333,
+                    lng: 106.4667,
+                    address: "Huyện Quảng Ninh",
+                    type: "Huyện",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Bố Trạch",
+                    lat: 17.5167,
+                    lng: 106.2500,
+                    address: "Huyện Bố Trạch",
+                    type: "Huyện",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Đồng Sơn (Lệ Thuỷ)",
+                    lat: 17.0667,
+                    lng: 106.6833,
+                    address: "Huyện Lệ Thủy",
+                    type: "Huyện",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Tuyên Hoá",
+                    lat: 17.9000,
+                    lng: 105.9667,
+                    address: "Huyện Tuyên Hóa",
+                    type: "Huyện",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Hòn La",
+                    lat: 17.4167,
+                    lng: 106.5833,
+                    address: "Khu vực Hòn La, Đồng Hới",
+                    type: "Khu vực thành phố",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Thanh Hà",
+                    lat: 17.5000,
+                    lng: 106.3667,
+                    address: "Khu vực Thanh Hà",
+                    type: "Huyện",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Hoà Ninh",
+                    lat: 17.3833,
+                    lng: 106.5000,
+                    address: "Xã Hòa Ninh, Quảng Ninh",
+                    type: "Huyện",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Ba Đồn",
+                    lat: 17.7600,
+                    lng: 106.4400,
+                    address: "Thị trấn Ba Đồn, Quảng Trạch",
+                    type: "Thị trấn",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Lý Hoà (Roon)",
+                    lat: 17.6667,
+                    lng: 106.3500,
+                    address: "Khu vực Lý Hòa",
+                    type: "Huyện",
+                    province: "Quảng Bình",
+                    bank: "BIDV"
+                }
+            ],
+            quangTri: [
+                {
+                    name: "BIDV PGD Đông Hà",
+                    lat: 16.8167,
+                    lng: 107.1000,
+                    address: "TP. Đông Hà, Quảng Trị",
+                    type: "Trung tâm tỉnh",
+                    province: "Quảng Trị",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Nam Đông Hà",
+                    lat: 16.8000,
+                    lng: 107.0950,
+                    address: "Phía Nam TP. Đông Hà",
+                    type: "Khu vực thành phố",
+                    province: "Quảng Trị",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Đường 9 (Tây Đông Hà)",
+                    lat: 16.8100,
+                    lng: 107.0800,
+                    address: "Phía Tây TP. Đông Hà",
+                    type: "Khu vực thành phố",
+                    province: "Quảng Trị",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD TX Quảng Trị",
+                    lat: 16.7500,
+                    lng: 107.1900,
+                    address: "Thị xã Quảng Trị",
+                    type: "Thị xã",
+                    province: "Quảng Trị",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Vĩnh Linh",
+                    lat: 17.0667,
+                    lng: 106.9500,
+                    address: "Huyện Vĩnh Linh",
+                    type: "Huyện",
+                    province: "Quảng Trị",
+                    bank: "BIDV"
+                },
+                {
+                    name: "BIDV PGD Gio Linh",
+                    lat: 16.9400,
+                    lng: 107.0400,
+                    address: "Huyện Gio Linh",
+                    type: "Huyện",
+                    province: "Quảng Trị",
+                    bank: "BIDV"
+                }
+            ]
+        };
+
+        // Gộp tất cả các phòng giao dịch
+        const allBranches = [
+            ...vietinbankBranches.quangBinh,
+            ...vietinbankBranches.quangTri,
+            ...vietcombankBranches.quangBinh,
+            ...vietcombankBranches.quangTri,
+            ...bidvBranches.quangBinh,
+            ...bidvBranches.quangTri
+        ];
+
+        // Khởi tạo bản đồ
+        const map = L.map('map').setView([17.2000, 106.8000], 9);
+
+        // Thêm tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Tạo custom icons
+        const vietinbankIcon = L.divIcon({
+            html: `<div style="background-color: #00a652; color: white; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); font-size: 11px; border: 2px solid white;">VTB</div>`,
+            iconSize: [35, 35],
+            iconAnchor: [17.5, 17.5],
+            popupAnchor: [0, -17.5]
+        });
+
+        const vietcombankIcon = L.divIcon({
+            html: `<div style="background-color: #003d7a; color: white; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); font-size: 11px; border: 2px solid white;">VCB</div>`,
+            iconSize: [35, 35],
+            iconAnchor: [17.5, 17.5],
+            popupAnchor: [0, -17.5]
+        });
+
+        const bidvIcon = L.divIcon({
+            html: `<div style="background-color: #1e5aa8; color: white; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); font-size: 11px; border: 2px solid white;">BIDV</div>`,
+            iconSize: [35, 35],
+            iconAnchor: [17.5, 17.5],
+            popupAnchor: [0, -17.5]
+        });
+
+        // Lưu trữ markers
+        const markers = {};
+        const markerGroups = {
+            vietinbank: L.layerGroup().addTo(map),
+            vietcombank: L.layerGroup().addTo(map),
+            bidv: L.layerGroup().addTo(map)
+        };
+
+        // Thêm markers cho từng phòng giao dịch
+        allBranches.forEach((branch, index) => {
+            let icon, group;
+            
+            if (branch.bank === "Vietinbank") {
+                icon = vietinbankIcon;
+                group = markerGroups.vietinbank;
+            } else if (branch.bank === "Vietcombank") {
+                icon = vietcombankIcon;
+                group = markerGroups.vietcombank;
+            } else {
+                icon = bidvIcon;
+                group = markerGroups.bidv;
+            }
+            
+            const marker = L.marker([branch.lat, branch.lng], { icon: icon })
+                .bindPopup(`
+                    <div class="custom-popup">
+                        <h4 style="color: ${branch.bank === 'Vietinbank' ? '#00a652' : branch.bank === 'Vietcombank' ? '#003d7a' : '#1e5aa8'}">${branch.name}</h4>
+                        <p><strong>Ngân hàng:</strong> ${branch.bank}</p>
+                        <p><strong>Địa chỉ:</strong> ${branch.address}</p>
+                        <p><strong>Loại:</strong> ${branch.type}</p>
+                        <p><strong>Tỉnh:</strong> ${branch.province}</p>
+                    </div>
+                `);
+            
+            marker.addTo(group);
+            markers[index] = marker;
+        });
+
+        // Tạo danh sách phòng giao dịch trong panel
+        function createBranchItem(branch, index) {
+            const item = document.createElement('div');
+            item.className = 'branch-item';
+            item.innerHTML = `<strong>${branch.name}</strong><small>${branch.address}</small>`;
+            item.onclick = () => {
+                map.setView([branch.lat, branch.lng], 14);
+                markers[index].openPopup();
+            };
+            return item;
+        }
+
+        // Index tracking
+        let currentIndex = 0;
+
+        // Thêm Vietinbank branches
+        const vietinbankQtList = document.getElementById('vietinbank-qt-list');
+        vietinbankBranches.quangTri.forEach((branch, index) => {
+            vietinbankQtList.appendChild(createBranchItem(branch, currentIndex++));
+        });
+
+        const vietinbankQbList = document.getElementById('vietinbank-qb-list');
+        vietinbankBranches.quangBinh.forEach((branch, index) => {
+            vietinbankQbList.appendChild(createBranchItem(branch, currentIndex++));
+        });
+
+        // Thêm Vietcombank branches
+        const vietcombankQtList = document.getElementById('vietcombank-qt-list');
+        vietcombankBranches.quangTri.forEach((branch, index) => {
+            vietcombankQtList.appendChild(createBranchItem(branch, currentIndex++));
+        });
+
+        const vietcombankQbList = document.getElementById('vietcombank-qb-list');
+        vietcombankBranches.quangBinh.forEach((branch, index) => {
+            vietcombankQbList.appendChild(createBranchItem(branch, currentIndex++));
+        });
+
+        // Thêm BIDV branches
+        const bidvQbList = document.getElementById('bidv-qb-list');
+        bidvBranches.quangBinh.forEach((branch, index) => {
+            bidvQbList.appendChild(createBranchItem(branch, currentIndex++));
+        });
+
+        const bidvQtList = document.getElementById('bidv-qt-list');
+        bidvBranches.quangTri.forEach((branch, index) => {
+            bidvQtList.appendChild(createBranchItem(branch, currentIndex++));
+        });
+
+        // Hàm toggle ngân hàng
+        function toggleBank(bank) {
+            const list = document.getElementById(bank + '-list');
+            list.classList.toggle('active');
+        }
+
+        // Hàm filter ngân hàng
+        function filterBanks() {
+            const vietinbankChecked = document.getElementById('filter-vietinbank').checked;
+            const vietcombankChecked = document.getElementById('filter-vietcombank').checked;
+            const bidvChecked = document.getElementById('filter-bidv').checked;
+
+            if (vietinbankChecked) {
+                map.addLayer(markerGroups.vietinbank);
+            } else {
+                map.removeLayer(markerGroups.vietinbank);
+            }
+
+            if (vietcombankChecked) {
+                map.addLayer(markerGroups.vietcombank);
+            } else {
+                map.removeLayer(markerGroups.vietcombank);
+            }
+
+            if (bidvChecked) {
+                map.addLayer(markerGroups.bidv);
+            } else {
+                map.removeLayer(markerGroups.bidv);
+            }
+
+            // Cập nhật số lượng hiển thị
+            let total = 0;
+            if (vietinbankChecked) total += 13;
+            if (vietcombankChecked) total += 13;
+            if (bidvChecked) total += 19;
+            document.getElementById('total-count').textContent = total;
+        }
+
+        // Tạo bounds để hiển thị tất cả các điểm
+        const group = new L.featureGroup(Object.values(markers));
+        map.fitBounds(group.getBounds().pad(0.1));
+    </script>
+</body>
+</html>
